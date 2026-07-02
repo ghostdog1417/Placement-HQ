@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { useLocalStorage, uid } from "@/lib/storage";
-import { seedResumes } from "@/lib/seed";
+import { useAuth } from "@/lib/auth";
+import { useUserCollection } from "@/lib/firestore";
+import { uid } from "@/lib/storage";
 import type { Resume } from "@/lib/types";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -41,26 +42,24 @@ const empty = (): Resume => ({
 });
 
 function ResumesPage() {
-  const [resumes, setResumes] = useLocalStorage<Resume[]>("pt.resumes", seedResumes);
+  const { user } = useAuth();
+  const { items: resumes, saveItem, deleteItem } = useUserCollection<Resume>(user?.uid ?? null, "resumes");
   const [editing, setEditing] = useState<Resume | null>(null);
   const [open, setOpen] = useState(false);
 
-  const save = (r: Resume) => {
-    setResumes((prev) => {
-      const i = prev.findIndex((p) => p.id === r.id);
-      const updated = { ...r, updatedAt: new Date().toISOString() };
-      if (i === -1) return [updated, ...prev];
-      const next = [...prev];
-      next[i] = updated;
-      return next;
+  const save = async (r: Resume) => {
+    await saveItem({
+      ...r,
+      updatedAt: new Date().toISOString(),
+      createdAt: r.createdAt || new Date().toISOString(),
     });
     toast.success("Resume saved");
     setOpen(false);
     setEditing(null);
   };
 
-  const remove = (id: string) => {
-    setResumes((prev) => prev.filter((r) => r.id !== id));
+  const remove = async (id: string) => {
+    await deleteItem(id);
     toast.success("Deleted");
   };
 

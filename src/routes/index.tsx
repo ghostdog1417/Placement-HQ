@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { useLocalStorage } from "@/lib/storage";
-import { seedCompanies, seedOffers, seedResumes } from "@/lib/seed";
+import { useAuth } from "@/lib/auth";
+import { useUserCollection } from "@/lib/firestore";
 import type { Company, Offer, Resume } from "@/lib/types";
 import { PageShell } from "@/components/page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,9 +21,10 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
-  const [companies] = useLocalStorage<Company[]>("pt.companies", seedCompanies);
-  const [resumes] = useLocalStorage<Resume[]>("pt.resumes", seedResumes);
-  const [offers] = useLocalStorage<Offer[]>("pt.offers", seedOffers);
+  const { user } = useAuth();
+  const { items: companies } = useUserCollection<Company>(user?.uid ?? null, "companies");
+  const { items: resumes } = useUserCollection<Resume>(user?.uid ?? null, "resumes");
+  const { items: offers } = useUserCollection<Offer>(user?.uid ?? null, "offers");
 
   const stats = useMemo(() => {
     const applied = companies.filter((c) =>

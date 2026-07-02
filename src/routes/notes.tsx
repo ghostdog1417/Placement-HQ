@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { useLocalStorage, uid } from "@/lib/storage";
-import { seedNotes } from "@/lib/seed";
+import { useAuth } from "@/lib/auth";
+import { useUserCollection } from "@/lib/firestore";
+import { uid } from "@/lib/storage";
 import type { Note } from "@/lib/types";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -47,24 +48,19 @@ const empty = (): Note => ({
 });
 
 function NotesPage() {
-  const [notes, setNotes] = useLocalStorage<Note[]>("pt.notes", seedNotes);
+  const { user } = useAuth();
+  const { items: notes, saveItem, deleteItem } = useUserCollection<Note>(user?.uid ?? null, "notes");
   const [editing, setEditing] = useState<Note | null>(null);
   const [open, setOpen] = useState(false);
 
-  const save = (n: Note) => {
-    setNotes((prev) => {
-      const i = prev.findIndex((p) => p.id === n.id);
-      if (i === -1) return [n, ...prev];
-      const next = [...prev];
-      next[i] = n;
-      return next;
-    });
+  const save = async (n: Note) => {
+    await saveItem({ ...n });
     toast.success("Note saved");
     setOpen(false);
     setEditing(null);
   };
-  const remove = (id: string) => {
-    setNotes((prev) => prev.filter((n) => n.id !== id));
+  const remove = async (id: string) => {
+    await deleteItem(id);
     toast.success("Deleted");
   };
 

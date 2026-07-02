@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useLocalStorage, uid } from "@/lib/storage";
-import { seedCompanies } from "@/lib/seed";
+import { uid } from "@/lib/storage";
+import { useAuth } from "@/lib/auth";
+import { useUserCollection } from "@/lib/firestore";
 import { COMPANY_STATUSES, type Company, type CompanyStatus } from "@/lib/types";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,8 @@ const emptyCompany = (): Company => ({
 });
 
 function CompaniesPage() {
-  const [companies, setCompanies] = useLocalStorage<Company[]>("pt.companies", seedCompanies);
+  const { user } = useAuth();
+  const { items: companies, saveItem, deleteItem } = useUserCollection<Company>(user?.uid ?? null, "companies");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CompanyStatus | "all">("all");
   const [editing, setEditing] = useState<Company | null>(null);
@@ -83,22 +85,19 @@ function CompaniesPage() {
     [companies, query, statusFilter],
   );
 
-  const save = (c: Company) => {
-    setCompanies((prev) => {
-      const idx = prev.findIndex((p) => p.id === c.id);
-      const updated = { ...c, updatedAt: new Date().toISOString() };
-      if (idx === -1) return [updated, ...prev];
-      const next = [...prev];
-      next[idx] = updated;
-      return next;
+  const save = async (c: Company) => {
+    await saveItem({
+      ...c,
+      updatedAt: new Date().toISOString(),
+      createdAt: c.createdAt || new Date().toISOString(),
     });
     toast.success(`Saved ${c.name || "company"}`);
     setOpen(false);
     setEditing(null);
   };
 
-  const remove = (id: string) => {
-    setCompanies((prev) => prev.filter((c) => c.id !== id));
+  const remove = async (id: string) => {
+    await deleteItem(id);
     toast.success("Deleted");
   };
 

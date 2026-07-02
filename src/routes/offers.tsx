@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useLocalStorage, uid } from "@/lib/storage";
-import { seedOffers } from "@/lib/seed";
+import { useAuth } from "@/lib/auth";
+import { useUserCollection } from "@/lib/firestore";
+import { uid } from "@/lib/storage";
 import type { Offer } from "@/lib/types";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,8 @@ const empty = (): Offer => ({
 });
 
 function OffersPage() {
-  const [offers, setOffers] = useLocalStorage<Offer[]>("pt.offers", seedOffers);
+  const { user } = useAuth();
+  const { items: offers, saveItem, deleteItem } = useUserCollection<Offer>(user?.uid ?? null, "offers");
   const [editing, setEditing] = useState<Offer | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -61,21 +63,18 @@ function OffersPage() {
     return offers.reduce((a, b) => (b.base + b.bonus + b.stock > a.base + a.bonus + a.stock ? b : a));
   }, [offers]);
 
-  const save = (o: Offer) => {
-    setOffers((prev) => {
-      const i = prev.findIndex((p) => p.id === o.id);
-      if (i === -1) return [o, ...prev];
-      const next = [...prev];
-      next[i] = o;
-      return next;
+  const save = async (o: Offer) => {
+    await saveItem({
+      ...o,
+      createdAt: o.createdAt || new Date().toISOString(),
     });
     toast.success("Offer saved");
     setOpen(false);
     setEditing(null);
   };
 
-  const remove = (id: string) => {
-    setOffers((prev) => prev.filter((o) => o.id !== id));
+  const remove = async (id: string) => {
+    await deleteItem(id);
     toast.success("Deleted");
   };
 
